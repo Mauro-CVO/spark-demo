@@ -1,7 +1,20 @@
+import os
 from pyspark.sql import SparkSession
+from pyspark.sql import Window
+from pyspark.sql.functions import row_number, monotonically_increasing_id
+import pyspark.sql.functions as F
+
+
+def name_change(path, new_name):
+    files = os.listdir(path)
+
+    for file in files:
+        if file.startswith("part"):
+            os.rename(path + file, new_name)
+
+
 spark = SparkSession.builder.master("local[*]").getOrCreate()
-spark.conf.set("spark.sql.repl.eagerEval.enabled", True) # Property used to format output tables better
-spark
+spark.conf.set("spark.sql.repl.eagerEval.enabled", True)  # Property used to format output tables better
 
 # Load a CSV file into a Spark DataFrame
 df = spark.read.csv('data.csv', header=True, inferSchema=True)
@@ -13,16 +26,12 @@ df.printSchema()
 df.show(5)
 
 #Agregar indices
-from pyspark.sql import Window
-from pyspark.sql.functions import row_number, monotonically_increasing_id
 
 df = df.withColumn("ID", row_number().over(Window.orderBy(monotonically_increasing_id())))
 
 df.show()
 
 # Numero de Registros con valores nulos por columna
-
-import pyspark.sql.functions as F
 
 # Get the number of null values in each column
 null_counts = df.select([F.count(F.when(F.isnull(c), c)).alias(c) for c in df.columns])
@@ -55,7 +64,7 @@ df_not_nulls.count()
 ## Campos que tiene RFC y CURP con longitudes menores o mayores a 13 y 18 respectivamente
 
 df_not_rfc_curp = df_not_nulls.select(cols).filter((F.length(F.col("CURP")) != 8) |
-              (F.length(F.col("RFC")) != 5))
+                                                   (F.length(F.col("RFC")) != 5))
 
 df_not_rfc_curp.show(4)
 df_not_rfc_curp.count()
@@ -64,7 +73,6 @@ df_not_rfc_curp.count()
 
 # Convert the birthday column to a date type
 df_date = df_not_rfc_curp.withColumn("Fecha_Nacimiento", F.to_date("Fecha_Nacimiento", "d/M/y"))
-
 
 # Calculate the age of each person in days
 df_date_dias = df_date.withColumn("Dias_Edad", F.datediff(F.current_date(), df_date["Fecha_Nacimiento"]))
@@ -89,8 +97,16 @@ df_validated = df_less_than_65.select(cols)
 df_validated.count()
 
 # prompt: save df as CSV pyspark
-df_validated.write.option("header",True) \
- .csv("validados")
+df_validated.write.option("header", True) \
+    .csv("validados")
 
-df_not_validated.write.option("header",True) \
- .csv("no_validados")
+df_not_validated.write.option("header", True) \
+    .csv("no_validados")
+
+name_V = "validados.csv"
+name_NV = "no_validados.csv"
+path_V = "validados/"
+path_NV = "no_validados/"
+
+name_change(path_V, name_V)
+name_change(path_NV, name_NV)
