@@ -110,3 +110,49 @@ path_NV = "no_validados/"
 
 name_change(path_V, name_V)
 name_change(path_NV, name_NV)
+
+##Envio de Correo
+
+print("enviando correo")
+import smtplib
+from os.path import basename
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
+import json
+
+
+def get_secrets():
+    with open('secrets.json') as secrets_file:
+        secrets1 = json.load(secrets_file)
+
+    return secrets1
+
+
+secrets = get_secrets()
+email_pswd = secrets.get("email_pswd")
+email = secrets.get("email")
+email_dest = secrets.get("email_dest")
+server_name = "smtp.titan.email"
+port = 587
+subject = "Correo de Prueba"
+content = "Este es un correo de prueba"
+
+msg = MIMEMultipart()
+msg["From"] = email
+msg["To"] = email_dest
+msg["Subject"] = subject
+body = MIMEText(content, "plain")
+msg.attach(body)
+
+filename = "no_validados.csv"
+with open(filename, "r") as f:
+    attachment = MIMEApplication(f.read(), Name=basename(filename))
+    attachment["Content-Disposition"] = 'attachment; filename="{}"'.format(basename(filename))
+
+msg.attach(attachment)
+
+server = smtplib.SMTP(server_name, port)
+server.login(email, password=email_pswd)
+server.send_message(msg, email, email_dest)
+print("Correo Enviado")
